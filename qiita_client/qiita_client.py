@@ -12,6 +12,7 @@ import time
 import requests
 import threading
 import pandas as pd
+import math
 from json import dumps, loads
 try:
     from json import JSONDecodeError
@@ -927,6 +928,40 @@ class QiitaClient(object):
                 ("File communication protocol '%s' as defined in plugins "
                  "configuration is NOT defined.") % self._plugincoupling)
 
+    def _push_file_in_chunks(self, filepath, fp_target, is_directory=False,
+                             chunk_size=3*1024*1024):
+        """Pushs a file in chunks to Qiita central.
+
+        Parameters
+        ----------
+        filepath : str
+            Filepath to the file whichs content shall be split into chunks.
+        fp_target : str
+            Desired file path in Qiita central - might be different from
+            current filepath pointing to the file that shall be transfered.
+        is_directory : boolean
+            Flag that transferred file is a zipped archive that shall be
+            extracted in Qiita central.
+        chunk_size : int
+            Maximum size in byte for a chunk.
+        """
+        total_chunks = math.ceil(os.path.getsize(filepath) / chunk_size)
+        current_chunk = 1
+        with open(filepath, "rb") as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                self.post(
+                    '/cloud/push_file_to_central/',
+                    files={'file': ("dummy", chunk,
+                                    "application/octet-stream")},
+                    data={"current_chunk": str(current_chunk),
+                          "total_chunks": str(total_chunks),
+                          "target_filepath": fp_target,
+                          'is_directory': 'true' if is_directory else 'false'})
+                current_chunk += 1
+
     def push_file_to_central(self, filepath):
         """Pushs file- or directory content to Qiita's central BASE_DATA_DIR
            directory.
@@ -970,14 +1005,9 @@ class QiitaClient(object):
                 for root, dirnames, filenames in os.walk(filepath):
                     for filename in fnmatch.filter(filenames, "*"):
                         fp = os.path.join(root, filename)
-                        self.post('/cloud/push_file_to_central/',
-                                  files={os.path.join(
-                                      dirpath,
-                                      os.path.dirname(fp)): open(fp, 'rb')})
+                        self._push_file_in_chunks(fp, fp)
             else:
-                self.post(
-                    '/cloud/push_file_to_central/',
-                    files={dirpath: open(filepath, 'rb')})
+                self._push_file_in_chunks(filepath, filepath)
 
             return filepath
 
