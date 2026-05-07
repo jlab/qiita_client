@@ -947,7 +947,9 @@ class QiitaClient(object):
         """
         # min 1, because a plugin might want to send empty files, like in tests
         # for qtp-job-output-folder
-        total_chunks = min(1, math.ceil(os.path.getsize(filepath) / chunk_size))
+        total_chunks = min(
+            1,
+            math.ceil(os.path.getsize(filepath) / chunk_size))
         current_chunk = 1
         with open(filepath, "rb") as f:
             while True:
