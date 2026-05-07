@@ -945,9 +945,9 @@ class QiitaClient(object):
         chunk_size : int
             Maximum size in byte for a chunk.
         """
-        # min 1, because a plugin might want to send empty files, like in tests
+        # max 1, because a plugin might want to send empty files, like in tests
         # for qtp-job-output-folder
-        total_chunks = min(
+        total_chunks = max(
             1,
             math.ceil(os.path.getsize(filepath) / chunk_size))
         current_chunk = 1
